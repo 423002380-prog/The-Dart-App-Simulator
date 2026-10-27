@@ -1,0 +1,182 @@
+import 'dart:async';
+
+// -------------------------------------------------------------------
+// 1. MIXIN (Code Reuse Requirement)
+// -------------------------------------------------------------------
+mixin Loggable {
+  void logAction(String action) {
+    final timestamp = DateTime.now().toIso8601String();
+    print('[LOG $timestamp] $action');
+  }
+}
+
+// -------------------------------------------------------------------
+// 2. ABSTRACT CLASS (OOP Interface/Template Requirement)
+// -------------------------------------------------------------------
+abstract class BaseItem {
+  final String id;
+  final String name;
+  final double price;
+
+  BaseItem({required this.id, required this.name, required this.price});
+
+  // Abstract method to be overridden by child classes
+  void displayDetails();
+}
+
+// -------------------------------------------------------------------
+// 3. CONCRETE CLASS WITH INHERITANCE
+// -------------------------------------------------------------------
+class Product extends BaseItem with Loggable {
+  int stockQuantity;
+
+  Product({
+    required String id,
+    required String name,
+    required double price,
+    required this.stockQuantity,
+  }) : super(id: id, name: name, price: price);
+
+  @override
+  void displayDetails() {
+    print('[$id] $name - ₱${price.toStringAsFixed(2)} (In Stock: $stockQuantity)');
+  }
+
+  void reduceStock(int quantity) {
+    if (quantity > stockQuantity) {
+      throw Exception('Insufficient stock for $name!');
+    }
+    stockQuantity -= quantity;
+    logAction('Updated stock for $name. Remaining: $stockQuantity');
+  }
+}
+
+// -------------------------------------------------------------------
+// 4. SHOPPING CART CLASS (Managing Transactions)
+// -------------------------------------------------------------------
+class ShoppingCart with Loggable {
+  final Map<Product, int> _items = {};
+
+  void addItem(Product product, int quantity) {
+    if (quantity <= 0) {
+      throw Exception('Quantity must be greater than zero.');
+    }
+    if (quantity > product.stockQuantity) {
+      throw Exception('Not enough units available in stock.');
+    }
+
+    _items[product] = (_items[product] ?? 0) + quantity;
+    logAction('Added $quantity x ${product.name} to cart.');
+  }
+
+  double calculateTotal() {
+    double total = 0.0;
+    _items.forEach((product, quantity) {
+      total += product.price * quantity;
+    });
+    return total;
+  }
+
+  void displayCart() {
+    if (_items.isEmpty) {
+      print('\nYour cart is currently empty.');
+      return;
+    }
+
+    print('\n--- Current Cart Summary ---');
+    _items.forEach((product, quantity) {
+      final subtotal = product.price * quantity;
+      print('${product.name} x$quantity = ₱${subtotal.toStringAsFixed(2)}');
+    });
+    print('Total: ₱${calculateTotal().toStringAsFixed(2)}');
+    print('----------------------------');
+  }
+
+  // -------------------------------------------------------------------
+  // 5. ASYNCHRONOUS SIMULATION (Future, async, await, try-catch)
+  // -------------------------------------------------------------------
+  Future<bool> processCheckout() async {
+    if (_items.isEmpty) {
+      throw Exception('Cannot checkout with an empty cart.');
+    }
+
+    print('\n[System] Connecting to payment gateway...');
+    logAction('Initiating payment gateway connection...');
+    await Future.delayed(Duration(seconds: 2)); // Simulated delay
+
+    print('[System] Verifying inventory and processing order...');
+    await Future.delayed(Duration(seconds: 1)); // Simulated delay
+
+    // Update stock levels
+    _items.forEach((product, quantity) {
+      product.reduceStock(quantity);
+    });
+
+    _items.clear();
+    logAction('Checkout completed successfully.');
+    return true;
+  }
+}
+
+// -------------------------------------------------------------------
+// 6. MAIN PROGRAM ENTRY & SIMULATION RUNNER
+// -------------------------------------------------------------------
+Future<void> fetchInventoryData() async {
+  print('Loading store inventory database...');
+  await Future.delayed(Duration(seconds: 2)); // Simulated database load
+  print('Inventory loaded successfully!\n');
+}
+
+void main() async {
+  print('==============================================');
+  print('    ONLINE STORE APP SIMULATOR (Lab 3)        ');
+  print('==============================================\n');
+
+  // Async inventory initialization with error handling
+  try {
+    await fetchInventoryData();
+  } catch (e) {
+    print('Error loading inventory data: $e');
+    return;
+  }
+
+  // Available Products
+  final inventory = [
+    Product(id: 'P101', name: 'Wireless Headphones', price: 2499.50, stockQuantity: 5),
+    Product(id: 'P102', name: 'Mechanical Keyboard', price: 3150.00, stockQuantity: 3),
+    Product(id: 'P103', name: 'Gaming Mouse', price: 1200.00, stockQuantity: 10),
+  ];
+
+  final cart = ShoppingCart();
+
+  // Demonstration Flow
+  try {
+    print('--- Available Inventory ---');
+    for (var item in inventory) {
+      item.displayDetails();
+    }
+
+    print('\nSimulating user adding items to cart...');
+    cart.addItem(inventory[0], 2); // 2 Headphones
+    cart.addItem(inventory[1], 1); // 1 Keyboard
+
+    cart.displayCart();
+
+    print('\nStarting checkout process...');
+    final success = await cart.processCheckout();
+
+    if (success) {
+      print('\nSUCCESS: Transaction complete! Thank you for your purchase.');
+    }
+  } catch (error) {
+    print('\nTRANSACTION ERROR: $error');
+  } finally {
+    print('\n--- Updated Inventory Status ---');
+    for (var item in inventory) {
+      item.displayDetails();
+    }
+    print('\n==============================================');
+    print('      SIMULATION FINISHED SUCCESSFULLY        ');
+    print('==============================================');
+  }
+}
